@@ -66,7 +66,7 @@ class L2_switch (EventMixin):
 
         def updateMap(self,srcportin,srcmacaddr): # to update the mac-addr, port table
                 if srcmacaddr in self.macaddrtable.keys() and self.macaddrtable[srcmacaddr] != srcportin :
-                        self.macaddrtable[srcmacaddr] == srcportin
+                        self.macaddrtable[srcmacaddr] = srcportin
                 elif srcmacaddr not in self.macaddrtable.keys():
                         self.macaddrtable[srcmacaddr] = srcportin
 
