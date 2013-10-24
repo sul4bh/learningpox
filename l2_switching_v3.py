@@ -28,16 +28,15 @@ from  pox.core import core  # to import core module to register and hook the mod
 import pox.openflow.libopenflow_01 as of
 from pox.lib.revent import *
 
-
-#log = core.getLogger()
+log = core.getLogger()
 
 class L2_switch (EventMixin):
         print "in L2switch class"
-        def __init__(self,transparent):
+        def __init__(self):
         # as soon as the module is hooked initialise..
                 self.macaddrtable = {}
                 self.listenTo(core.openflow)#listening to the events from core.openflow
-                self.transparent = transparent
+
 
         def _handle_ConnectionUp (self,event):
          # event handler for 'connectionup' events
@@ -46,58 +45,60 @@ class L2_switch (EventMixin):
         def _handle_PacketIn (self,event):
          # event handler for incoming packets.check pox/openflow/__init__.py for infor on PacketIn(Event) class
          # ofp represents the real openflow packet which triggered the event and is an event attribute.
+
                 parsedpkt = event.parsed
                 print type(parsedpkt)
                 inport = event.ofp.in_port
                 data = event.ofp.data
-                connection = event.connection
                 ethpkt = parsedpkt.find('ethernet')
+
                 print type(ethpkt)
                 dstmacaddr = ethpkt.dst
                 srcmacaddr = ethpkt.src
-        #       log.debug("packet parsed")
 
-        #checkng if srcmacadd and srcportin exists in mac table do nothing, else update the mac table using the class method updateMap
+        #updating srcmactable
                 self.updateMap(inport,srcmacaddr)
-
         # processing the packet
-                flowmsg = self.processPacket(dstmacaddr,inport,self.transparent)
+                self.processPacket(dstmacaddr,inport,event,parsedpkt)
 
-        # sending the flowmod message to the openflow switch
-                self.sendFlowMod(flowmsg,connection)
+        def floodPacket(self,event):
+                message = of.ofp_packet_out()
+                message.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
+                message.data = event.data
+                message.in_port = event.port
+                return message
+
+        def dropPacket(self,event):
+                message = of.ofp_packet_out()
+                message.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
+                message.data = event.data
+                message.in_port = event.port
+                return message
 
         def updateMap(self,srcportin,srcmacaddr): # to update the mac-addr, port table
-                if srcmacaddr in self.macaddrtable.keys() and self.macaddrtable[srcmacaddr] != srcportin :
-                        self.macaddrtable[srcmacaddr] == srcportin
-                elif srcmacaddr not in self.macaddrtable.keys():
-                        self.macaddrtable[srcmacaddr] = srcportin
+                self.macaddrtable[srcmacaddr] = srcportin
 
-        def processPacket(self,destmacaddr,srcport,transparent):# frame flow entries to forward the packets based on entries made in macaddrtable
-                LLDPMACLST = ['01:80:c2:00:00:0e','01:80:c2:00:00:03','01:80:c2:00:00:00']
-                msg = of.ofp_flow_mod() #of mod message to be sent to switch
+        def processPacket(self,destmacaddr,srcport,event,packet):# frame flow entries to forward the packets based on entries made in macaddrtable
 
-                if destmacaddr in LLDPMACLST and not transparent: # incase the dest mac is LLDP and switch is non-transparent , drop the packet
-                        msg.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
-
-                elif destmacaddr.is_multicast: # if mulicast packet, then flood
-                        msg.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
+                if destmacaddr.is_multicast: # if mulicast packet, then flood
+                        msg = self.floodPacket(event)
 
                 elif destmacaddr in self.macaddrtable.keys():
+                        msg = of.ofp_flow_mod()
                         destport = self.macaddrtable[destmacaddr] # if dest mac addr in macaddr table, update the dest id 
                         if destport != srcport: # if destport is not same as srcport, set the port id in action ad dest port
+                                msg.match = of.ofp_match.from_packet(packet,event.port)
                                 msg.actions.append(of.ofp_action_output(port=destport))
                         elif desport == srcport: #elif destport is same as srcport drop the packet
-                                msg.actions.append(of.ofp_action_output(port=of.OFPP_NONE))
+                                msg = self.dropPacket(event)
 
                 elif destmacaddr not in self.macaddrtable.keys(): # if the destmac aaadr has no entry in macaddr table,bc the packet.
-                        msg.actions.append(of.ofp_action_output(port=of.OFPP_FLOOD))
-                return msg
+                        msg = self.floodPacket(event)
+                self.sendFlowMod(msg,event)
 
-
-        def sendFlowMod(self,msg,connection):
-                connection.send(msg)
-
+        def sendFlowMod(self,msg,event):
+                event.connection.send(msg)
 def launch():
         print "in launch.."
-        core.registerNew(L2_switch,False) #registering the component to the core . all the attributes while intialisation can be passed after the module . False here refers that the switch is not a transparent switch
+        core.registerNew(L2_switch) #registering the component to the core
 
