@@ -89,7 +89,7 @@ class L2_switch (EventMixin):
                                 log.debug ("%s" %msg)
                                 msg.actions.append(of.ofp_action_output(port=destport))
                                 log.debug ("%s" %msg)
-                        elif desport == srcport: #elif destport is same as srcport drop the packet
+                        elif destport == srcport: #elif destport is same as srcport drop the packet
                                 msg = self.dropPacket(event)
 
                 elif destmacaddr not in self.macaddrtable.keys(): # if the destmac aaadr has no entry in macaddr table,bc the packet.
