@@ -31,25 +31,25 @@ from pox.lib.util import dpid_to_str
 
 log = core.getLogger()
 
-#class L2_switch (EventMixin):
-class LearningSwitch(object):
-        print "in L2switch class"
+class l2_learning(EventMixin):
+        def __init__(self,transparent):
+                self.listenTo(core.openflow)
+                self.transparent = transparent
+
+        def _handle_ConnectionUp(self,event):#everytime a connection is established, a new switch instance is created
+                L2switch(event.connection,self.transparent)
+
+class L2switch(object):
         def __init__(self,connection,transparent):
         # as soon as the module is hooked initialise..
                 self.macaddrtable = {}
-                #self.listenTo(core.openflow)#listening to the events from core.openflow
                 self.transparent = transparent
                 self.connection = connection
                 connection.addListeners(self)
-#       def _handle_ConnectionUp (self,event):
-#        # event handler for 'connectionup' events
-#               log.debug("connected to switch with dpid %s", event.dpid)
+
 
         def _handle_PacketIn (self,event):
          # event handler for incoming packets.check pox/openflow/__init__.py for infor on PacketIn(Event) class. ofp represents the real openflow packet which triggered the event and is an event attribute.
-                #self.dpid = event.dpid
-                #parsedpkt = event.parsed
-                #self.updateMap(event.port,parsedpkt.src)       
         # processing the packet
         #       log.debug ("%s" %event.ofp)
                 self.processPacket(event)
@@ -74,23 +74,27 @@ class LearningSwitch(object):
 
         def sendFlowMod(self,msg,event):
                 event.connection.send(msg)
+
         def processPacket(self,event):# frame flow entries to forward the packets based on entries made in macaddrtable
                 parsedpkt = event.parsed
-                log.debug("%i --> %s" ,event.dpid,parsedpkt)
-        #       inport = event.port
-        #       data = event.ofp.data
+        #       log.debug("%i --> %s" ,event.dpid,parsedpkt)
+                inport = event.port
         #       log.debug("%s-->%s",inport,data)
                 dstmacaddr = parsedpkt.dst
                 srcmacaddr = parsedpkt.src
-                self.updateMap(event.port,parsedpkt.src)
-                print self.macaddrtable
+                self.updateMap(inport,srcmacaddr)
+                msg = of.ofp_flow_mod()#default setting
+                msg.match = of.ofp_match.from_packet(parsedpkt,inport)
+                msg.data = event.ofp
+
                 if not self.transparent:
-                        if parsedpkt.type == parsedpkt.LLDP_TYPE or parsedpkt.dst.isBridgeFiltered():
+                        if parsedpkt.type == parsedpkt.LLDP_TYPE or dstmacaddr.isBridgeFiltered():
                                 msg = self.dropPacket(event)
                                 return
 
                 if dstmacaddr.is_multicast: # if mulicast packet, then flood
                         msg = self.floodPacket(event)
+
 
                 elif dstmacaddr not in self.macaddrtable:#if destmac not in macaddrtable,flood
                         msg = self.floodPacket(event)
@@ -100,26 +104,16 @@ class LearningSwitch(object):
                         if dstport == event.port: #if same as inport , drop the packet
                                 msg = self.dropPacket(event)
                                 print "dropping"
-                        elif dstport != event.port: #else, insert a flow table entry
-                                msg = of.ofp_flow_mod()
-                                msg.match = of.ofp_match.from_packet(parsedpkt,event.port)
+                        elif dstport != event.port : #else, insert a flow table entry
                                 msg.actions.append(of.ofp_action_output(port = dstport))
-                                msg.data = event.ofp
                 #               log.debug ("%s"%msg)
                 #
                 self.sendFlowMod(msg,event)
 
 
-def launch(tranaparent = False):
+def launch():
         print "in launch.."
         core.registerNew(l2_learning,False) #registering the component to the core
 
 
-class l2_learning(object):
-        def __init__(self,transparent):
-                core.openflow.addListeners(self)
-                self.transparent = transparent
-
-        def _handle_ConnectionUp(self,event):
-                LearningSwitch(event.connection,self.transparent)
 
