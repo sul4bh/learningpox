@@ -66,8 +66,9 @@ class L2_switch (EventMixin):
                 return message
 
         def dropPacket(self,event):
+                #no action implies a drop
                 message = of.ofp_packet_out()
-                message.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
+                #message.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
                 message.data = event.data
                 message.in_port = event.port
                 return message
