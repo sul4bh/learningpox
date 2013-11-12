@@ -57,15 +57,17 @@ class L2firewall(object):
          # event handler for incoming packets.check pox/openflow/__init__.py for infor on PacketIn(Event) class. ofp represents the real openflow packet which triggered the event and is an event attribute.
                 self.processPacket(event)
 
-        def checkRules(self,packet):
+         def checkRules(self,packet):
                 #trial - packets between (h2,h3) should be dropped
-                filterlist = ['00:00:00:00:00:02','00:00:00:00:00:03']
+                filterlist = [('00:00:00:00:00:02','00:00:00:00:00:03'),('00:00:00:00:00:01','00:00:00:00:00:07')]
                 srcmac = str(packet.src)
                 dstmac = str(packet.dst)
-                if srcmac in (filterlist) and (dstmac in filterlist):
-                        return'DROP'
-                else:
-                        return 'SWITCH'
+                for flow in filterlist:
+                        print flow
+                        if (srcmac,dstmac) == flow or (dstmac,srcmac) == flow:
+                                return 'DROP'
+                return 'SWITCH'
+
 
 
         def floodPacket(self,event):
