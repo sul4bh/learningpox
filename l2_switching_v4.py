@@ -85,7 +85,7 @@ class L2_switch (EventMixin):
                         log.debug ("%s"%msg)
                         destport = self.macaddrtable[destmacaddr] # if dest mac addr in macaddr table, update the dest id 
                         if destport != srcport: # if destport is not same as srcport, set the port id in action ad dest port
-  msg.match = of.ofp_match.from_packet(packet,event.port)
+                                msg.match = of.ofp_match.from_packet(packet,event.port)
                                 log.debug ("%s" %msg)
                                 msg.actions.append(of.ofp_action_output(port=destport))
                                 log.debug ("%s" %msg)
