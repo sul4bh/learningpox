@@ -1,4 +1,4 @@
-     #author : durga
+#author : durga
 #program : proxyARP & L3 switch
 #intial packets with unknown destinations are sent to controller.controller builds ARPtable subsequently , does proxy arp whereever possible
 # if no entry on the controller, the switches will BC ARP packet.
