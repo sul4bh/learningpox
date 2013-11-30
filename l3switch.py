@@ -13,6 +13,9 @@ from pox.lib.revent import *
 from pox.lib.addresses import EthAddr,IPAddr
 from pox.lib.packet.arp import arp
 from pox.lib.packet.ethernet import ethernet,ETHER_BROADCAST
+
+from copy import deepcopy
+
 log = core.getLogger()
 
 global ARPTable
@@ -117,17 +120,12 @@ class l3switching(object):
         def buildReply(self,arpreq):
                 #feilds in arp packet [HWTYPE,PROTOTYPE,HWSRC,HWDST,HWLEN,OPCODE,PROTOLEN,PROTOSRC,PROTODST,NEXT]
                 # will frame a new packet by calling packet.arp() as arp 
-
-                arpreply = arp() #arpreply is object of type arp. now we can asign values to each feild
-                arpreply.hwtype = arpreq.hwtype #which is basically 1 arp.HW_TYPE_ETHERNET
-                arpreply.prototype = arpreq.prototype # 0x0800,arp.PROTO_TYPE_IP
+                arpreply = deepcopy(arpreq)
                 arpreply.hwsrc = EthAddr(ARPTable[arpreq.protodst]) #proxying for real destination
-                arpreply.hwdst = arpreq.hwsrc # replying back to the src , hence dst is src
-                arpreply.hwlen=6 #len of mac add
-                arpreply.opcode=arp.REPLY #2
-                arpreply.protolen=4 #len of ip add
-                arpreply.protosrc= arpreq.protodst #proxying on behalf of dest
-                arpreply.protodst = arpreq.protosrc #replying back to src
+                arpreply.hwdst = arpreq.hwsrc
+                arpreply.opcode = arp.REPLY
+                arpreply.protosrc = arpreq.protodst
+                arpreply.protodst = arpreq.protosrc
                 return arpreply
 
 def launch():
