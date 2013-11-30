@@ -39,7 +39,7 @@ class L3Component(EventMixin):
 
         
         
-        class l3switching(object):
+class l3switching(object):
         def __init__(self,connection):
                 self.macaddrtable = {} #individual mac address table for each switch
                 self.connection = connection
