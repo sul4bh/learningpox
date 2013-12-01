@@ -10,16 +10,18 @@ from pox.lib import *
 from pox.core import core
 import pox.openflow.libopenflow_01 as of
 from pox.lib.revent import *
-from pox.lib.addresses import EthAddr,IPAddr
+from pox.lib.addresses import EthAddr
 from pox.lib.packet.arp import arp
-from pox.lib.packet.ethernet import ethernet,ETHER_BROADCAST
+from pox.lib.packet.ethernet import ethernet
+
+from LRUDict import LruDict
 
 from copy import deepcopy
 
 log = core.getLogger()
 
-global ARPTable
-ARPTable = {}
+ARPTable = LruDict(timeout=10, size=500)
+
 
 class L3Component(EventMixin):
 
@@ -118,9 +120,7 @@ class l3switching(object):
 
 
         def buildReply(self,arpreq):
-                #feilds in arp packet [HWTYPE,PROTOTYPE,HWSRC,HWDST,HWLEN,OPCODE,PROTOLEN,PROTOSRC,PROTODST,NEXT]
-                # will frame a new packet by calling packet.arp() as arp 
-                arpreply = deepcopy(arpreq)
+                arpreply = deepcopy(arpreq) #deepcopy to make clone of arpreq
                 arpreply.hwsrc = EthAddr(ARPTable[arpreq.protodst]) #proxying for real destination
                 arpreply.hwdst = arpreq.hwsrc
                 arpreply.opcode = arp.REPLY
